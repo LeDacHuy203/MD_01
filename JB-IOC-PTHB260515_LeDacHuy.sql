@@ -238,9 +238,8 @@ BEGIN
 END;
 $$;
 
-CALL sp_add_course('C006', 'C++', 'Lập trình', 360000);
-SELECT *
-FROM courses;
+-- CALL sp_add_course('C006', 'C++', 'Lập trình', 360000);
+
 --   6. Procedure: Chuyển đổi khóa học – sp_switch_course
 CREATE OR REPLACE PROCEDURE sp_switch_course(
     p_makh_moi VARCHAR(10),
@@ -267,7 +266,7 @@ BEGIN
 END;
 $$;
 
-CALL sp_switch_course('C005','EN005','C003');
+-- CALL sp_switch_course('C005','EN005','C003');
 
 
 
