@@ -23,6 +23,7 @@ CREATE TABLE enrollments
     ma_hv        VARCHAR(10) NOT NULL,
     FOREIGN KEY (ma_hv) REFERENCES students (ma_hv),
     ma_kh        VARCHAR(10) NOT NULL,
+    FOREIGN KEY (ma_kh) REFERENCES courses (ma_kh),
     ngay_dang_ky DATE DEFAULT CURRENT_DATE,
     trang_thai   VARCHAR(50)
 );
@@ -94,12 +95,12 @@ ORDER BY p.ngay_tt DESC;
 SELECT s.ma_hv, s.ho_ten, s.sdt, s.ngay_sinh
 FROM students s
 WHERE s.sdt ILIKE '098%'
-  AND  date_part('year',s.ngay_sinh) = '1998';
+  AND date_part('year', s.ngay_sinh) = '1998';
 -- 5.    - “Giao diện web quản trị hiển thị mỗi trang 2 khóa học. Hãy viết truy vấn lấy danh sách mã KH, tên KH, học phí cho trang thứ 2 (bỏ qua 2 khóa học đầu tiên).”
 SELECT c.ma_kh, c.ten_kh, c.hoc_phi
 FROM courses c
 ORDER BY c.ma_kh
-OFFSET 2;
+LIMIT 2 OFFSET 2;
 -- V. Báo cáo & phân tích nghiệp vụ
 -- 1.    - “Kế toán cần xuất báo cáo đối chiếu, hiển thị: mã HV, họ tên, tên khóa học và số tiền thanh toán. Lưu ý: Cần hiển thị cả những học viên đã đăng ký nhưng chưa thanh toán (số tiền thanh toán hiển thị là 0 hoặc NULL) - học viên chưa thanh toán sẽ chưa có dữ liệu ở bảng payments”
 SELECT s.ma_hv, s.ho_ten, c.ten_kh, COALESCE(p.so_tien, 0)
@@ -123,7 +124,7 @@ FROM enrollments e
          LEFT JOIN payments p on e.ma_dk = p.ma_dk
 WHERE p.so_tien IS NULL;
 -- 4.     - “Hệ thống muốn tặng mã giảm giá cho các học viên có tổng số tiền đã thanh toán từ 1.000.000 VNĐ trở lên. Hãy liệt kê mã HV, họ tên, email và tổng tiền họ đã chi trả.”
-SELECT s.ma_hv, s.ho_ten, s.email
+SELECT s.ma_hv, s.ho_ten, s.email,SUM(p.so_tien)
 FROM payments p
          JOIN public.enrollments e on p.ma_dk = e.ma_dk
          JOIN students s on e.ma_hv = s.ma_hv
@@ -149,7 +150,7 @@ FROM payments p
 GROUP BY c.ten_kh, c.the_loai
 HAVING sum(p.so_tien) >= 1000000;
 -- 3. Trigger: Kiểm tra logic ngày thanh toán – tg_check_payment_date
-CREATE OR REPLACE FUNCTION trigger_after_payments()
+CREATE OR REPLACE FUNCTION trigger_before_payments()
     RETURNS TRIGGER
 AS
 $$
@@ -164,7 +165,7 @@ BEGIN
     WHERE e.ma_dk = NEW.ma_dk;
 
 
---     SELECT p.ngay_tt
+    --     SELECT p.ngay_tt
 --     INTO v_ngay_dang_ky
 --     FROM payments p
 --     WHERE p.ma_dk = NEW.ma_dk;
@@ -186,15 +187,15 @@ $$
     LANGUAGE plpgsql;
 
 CREATE TRIGGER tg_check_payment_date
-    AFTER UPDATE OR INSERT
+    BEFORE UPDATE OR INSERT
     ON payments
     FOR EACH ROW
-EXECUTE FUNCTION trigger_after_payments();
+EXECUTE FUNCTION trigger_before_payments();
 
 
 
 --   4. Trigger: Cập nhật sĩ số lớp học – tg_update_student_count
-CREATE OR REPLACE FUNCTION trigger_before_update_student()
+CREATE OR REPLACE FUNCTION trigger_after_update_student()
     RETURNS TRIGGER
 AS
 $$
@@ -209,10 +210,10 @@ $$
     LANGUAGE plpgsql;
 
 CREATE TRIGGER tg_update_student_count
-    BEFORE INSERT
+    AFTER INSERT
     ON enrollments
     FOR EACH ROW
-EXECUTE FUNCTION trigger_before_update_student();
+EXECUTE FUNCTION trigger_after_update_student();
 
 
 
@@ -245,7 +246,6 @@ CREATE OR REPLACE PROCEDURE sp_switch_course(
     p_makh_moi VARCHAR(10),
     p_new_dk VARCHAR(10),
     p_makh_cu VARCHAR(10)
-
 )
     LANGUAGE plpgsql
 AS
